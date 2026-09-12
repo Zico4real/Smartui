@@ -4,11 +4,7 @@ A multi-protocol VPN/tunnel administration panel for Linux VPS servers — SSH-b
 
 ## Quick install
 
-```bash
 bash <(curl -Ls https://raw.githubusercontent.com/github.com/Zico4real/Smartui/main/install.sh)
-```
-
-Replace `<YOUR_ORG>/<YOUR_REPO>` with wherever you've actually hosted this. Run the panel afterward with:
 
 ```bash
 smartui
