@@ -12,7 +12,7 @@
 
 set -euo pipefail
 
-REPO_URL="https://github.com/Zico4real/Smartui.git"
+REPO_URL="https://github.com/YOUR_ORG/YOUR_REPO.git"
 INSTALL_DIR="/opt/smartui"
 BIN_LINK="/usr/local/bin/smartui"
 STATE_DIR="/etc/smartui"
