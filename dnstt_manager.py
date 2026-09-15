@@ -28,7 +28,7 @@ from panel_common import (
     clear_screen, check_system_port_in_use, prompt_port,
     open_firewall_port, close_firewall_port,
     nat_redirect_udp, remove_nat_redirect_udp, persist_firewall_rules,
-    is_valid_hostname, resolve_port53_conflict,
+    is_valid_hostname, resolve_port53_conflict, get_public_ip,
     run_cmd as _run,
 )
 
@@ -637,7 +637,7 @@ def _install_masterdns():
     os.makedirs(MASTERDNS_DIR, exist_ok=True)
     print(f"\n{C_CYAN}[i] Running the official MasterDnsVPN installer. It will ask for your")
     print(f"    tunnel domain directly — answer it when prompted below.{C_RESET}\n")
-    ret = os.system(f"cd {MASTERDNS_DIR} && bash <(curl -Ls {MASTERDNS_INSTALL_URL})")
+    ret = os.system(f"cd {MASTERDNS_DIR} && curl -Ls {MASTERDNS_INSTALL_URL} | bash")
 
     active = _run("systemctl is-active --quiet masterdnsvpn").returncode == 0
     key_path = f"{MASTERDNS_DIR}/encrypt_key.txt"
@@ -674,7 +674,7 @@ def _install_stormdns():
     os.makedirs(STORMDNS_DIR, exist_ok=True)
     print(f"\n{C_CYAN}[i] Running the official StormDNS installer. It will ask for your")
     print(f"    tunnel domain directly — answer it when prompted below.{C_RESET}\n")
-    ret = os.system(f"cd {STORMDNS_DIR} && bash <(curl -Ls {STORMDNS_INSTALL_URL})")
+    ret = os.system(f"cd {STORMDNS_DIR} && curl -Ls {STORMDNS_INSTALL_URL} | bash")
 
     active = _run("systemctl is-active --quiet stormdns").returncode == 0
     key_path = f"{STORMDNS_DIR}/encrypt_key.txt"
@@ -879,7 +879,7 @@ def _install_masterdns_routed(name, domain_ns, internal_port):
     os.makedirs(instance_dir, exist_ok=True)
     print(f"\n{C_CYAN}[i] Running the official MasterDnsVPN installer for instance '{name}'.")
     print(f"    It will ask for your tunnel domain directly — enter {domain_ns}.{C_RESET}\n")
-    ret = os.system(f"cd {instance_dir} && bash <(curl -Ls {MASTERDNS_INSTALL_URL})")
+    ret = os.system(f"cd {instance_dir} && curl -Ls {MASTERDNS_INSTALL_URL} | bash")
     if ret != 0:
         return False, None
     _reconfigure_toml_port(f"{instance_dir}/server_config.toml", internal_port)
@@ -895,7 +895,7 @@ def _install_stormdns_routed(name, domain_ns, internal_port):
     os.makedirs(instance_dir, exist_ok=True)
     print(f"\n{C_CYAN}[i] Running the official StormDNS installer for instance '{name}'.")
     print(f"    It will ask for your tunnel domain directly — enter {domain_ns}.{C_RESET}\n")
-    ret = os.system(f"cd {instance_dir} && bash <(curl -Ls {STORMDNS_INSTALL_URL})")
+    ret = os.system(f"cd {instance_dir} && curl -Ls {STORMDNS_INSTALL_URL} | bash")
     if ret != 0:
         return False
     _reconfigure_toml_port(f"{instance_dir}/server_config.toml", internal_port)
@@ -939,11 +939,11 @@ def _multi_engine_menu(ports_dict):
         registry = _load_instance_registry()
         clear_screen()
         router_active = _run("systemctl is-active --quiet dns-router").returncode == 0
-        print("════════════════════════════════════════════════════════════")
-        print("        MULTI-ENGINE MODE — SHARED PORT 53 VIA ROUTER       ")
-        print("════════════════════════════════════════════════════════════")
+        print("%s════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+        print("%s        MULTI-ENGINE MODE — SHARED PORT 53 VIA ROUTER       %s" % (C_BOLD, C_RESET))
+        print("%s════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
         print(f" Router: {'ON' if router_active else 'OFF'}  |  Instances: {len(registry)}")
-        print("════════════════════════════════════════════════════════════")
+        print("%s════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
         if not registry:
             print(" No instances yet.")
         else:
@@ -952,10 +952,10 @@ def _multi_engine_menu(ports_dict):
                 active = _run(["systemctl", "is-active", "--quiet", svc]).returncode == 0
                 status = f"{C_GREEN}ON{C_RESET}" if active else f"{C_RED}OFF{C_RESET}"
                 print(f"  {name:<16} {entry['mode']:<12} {entry['domain']:<28} [{status}]")
-        print("════════════════════════════════════════════════════════════")
+        print("%s════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
         print(" [1] Add instance          [2] View all profiles (copy info)")
         print(" [3] Remove instance       [0] Back")
-        print("════════════════════════════════════════════════════════════")
+        print("%s════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
 
         choice = input(" Enter an option: ").strip()
         if choice == '0':
@@ -963,9 +963,9 @@ def _multi_engine_menu(ports_dict):
 
         elif choice == '1':
             clear_screen()
-            print("════════════════════════════════════════════════════════════")
-            print("                     ADD NEW INSTANCE                        ")
-            print("════════════════════════════════════════════════════════════")
+            print("%s════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s                     ADD NEW INSTANCE                        %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
             print(" [1] DNSTT   [2] Slipstream   [3] MasterDnsVPN")
             print(" [4] VayDNS  [5] StormDNS      [6] CottenDNS")
             mode_choice = input(" Select engine: ").strip()
@@ -995,11 +995,8 @@ def _multi_engine_menu(ports_dict):
                 input("\nPress Enter to continue...")
                 continue
 
-            server_ip = input(" Enter your Server Public IP Address: ").strip()
-            if not server_ip:
-                print(f"{C_RED}[✖] Server IP address is required.{C_RESET}")
-                input("\nPress Enter to continue...")
-                continue
+            server_ip = get_public_ip()
+            print(" Server IP (auto-detected): %s" % server_ip)
 
             if not _ensure_router_deployed():
                 input("\nPress Enter to continue...")
@@ -1044,9 +1041,9 @@ def _multi_engine_menu(ports_dict):
 
         elif choice == '2':
             clear_screen()
-            print("════════════════════════════════════════════════════════════")
-            print("              ALL PROFILES — COPY CONNECTION INFO           ")
-            print("════════════════════════════════════════════════════════════")
+            print("%s════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s              ALL PROFILES — COPY CONNECTION INFO           %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
             if not registry:
                 print(" No instances configured yet.")
             for name, entry in registry.items():
@@ -1102,28 +1099,18 @@ def dnstt_admin_manager(ports_dict):
         is_installed = ports_dict.get('DNSTT_INSTALLED', False)
 
         if not is_installed:
-            print("════════════════════════════════════════════════════════════")
-            print("                DNSTT ADMINISTRATOR (SLOWDNS)               ")
-            print("════════════════════════════════════════════════════════════")
+            print("%s════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s                DNSTT ADMINISTRATOR (SLOWDNS)               %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
             print(" [0] Back")
-            print(" [1] DNSTT (bamsoftware — the original, UDP tunnel)")
-            print(" [2] Slipstream (Mygod/slipstream-rust — QUIC-over-DNS successor)")
-            print(" [3] MasterDnsVPN (masterking32 — custom low-overhead protocol,")
-            print("                    multi-resolver failover, own TOML config)")
-            print(" [4] VayDNS (net2share — dnstt fork with KCP/smux reliable sessions,")
-            print("              Noise encryption, uTLS camouflage, -dnstt-compat mode)")
-            print(" [5] StormDNS (nullroute1970 — multi-resolver balancing, ARQ/NACK")
-            print("                retransmission, MTU discovery for lossy networks)")
-            print(" [6] CottenDNS (TaJirax — dual UDP+TCP/53 authoritative DNS engine,")
-            print("                 local healthz endpoint, DoH-aware rate limiting)")
-            print("────────────────────────────────────────────────────────────")
-            print(" [7] MULTI-ENGINE MODE — run several of the above AT THE SAME")
-            print("      TIME, sharing port 53 via subdomain-based DNS routing")
-            print("════════════════════════════════════════════════════════════")
-            print(f"{C_CYAN} Note: dnstt-server only ever has one server-side mode (UDP). Once")
-            print(f" installed, the client can still choose UDP/DoH/DoT — that's shown")
-            print(f" on the dashboard after install, it isn't a separate server mode.{C_RESET}")
-            print("════════════════════════════════════════════════════════════")
+            print(" [1] DNSTT (bamsoftware)")
+            print(" [2] Slipstream")
+            print(" [3] MasterDnsVPN")
+            print(" [4] VayDNS")
+            print(" [5] StormDNS")
+            print(" [6] CottenDNS")
+            print(" [7] MULTI-ENGINE MODE")
+            print("%s════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
 
             choice = input(" Enter an option: ").strip()
             if choice == '0':
@@ -1140,18 +1127,15 @@ def dnstt_admin_manager(ports_dict):
                     '5': 'stormdns', '6': 'cottendns'}[choice]
 
             clear_screen()
-            print("════════════════════════════════════════════════════════════")
+            print("%s════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
             print(f"         INSTALLER: {mode.upper()}")
-            print("════════════════════════════════════════════════════════════")
+            print("%s════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
 
             if mode in ('masterdns', 'stormdns', 'cottendns'):
                 # All three ship their own installer that prompts for the domain
                 # itself - we only need the IP for display purposes on our dashboard.
-                server_ip = input(" Enter your Server Public IP Address: ").strip()
-                if not server_ip:
-                    print(f"{C_RED}[✖] Server IP address is required.{C_RESET}")
-                    input("\nPress Enter to continue...")
-                    continue
+                server_ip = get_public_ip()
+                print(" Server IP (auto-detected): %s" % server_ip)
 
                 if mode == 'cottendns':
                     # The only engine here that needs TCP/53 too, not just UDP/53.
@@ -1180,11 +1164,8 @@ def dnstt_admin_manager(ports_dict):
                 input("\nPress Enter to continue...")
                 continue
 
-            server_ip = input(" Enter your Server Public IP Address: ").strip()
-            if not server_ip:
-                print(f"{C_RED}[✖] Server IP address is required.{C_RESET}")
-                input("\nPress Enter to continue...")
-                continue
+            server_ip = get_public_ip()
+            print(" Server IP (auto-detected): %s" % server_ip)
 
             custom_port = prompt_port(" Enter Listen Port (e.g., 53 for DNS): ", default=53)
 
@@ -1199,9 +1180,9 @@ def dnstt_admin_manager(ports_dict):
                 input("\nPress Enter to continue...")
                 continue
 
-            print("════════════════════════════════════════════════════════════")
-            print("                   TRAFFIC REDIRECTION                      ")
-            print("════════════════════════════════════════════════════════════")
+            print("%s════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s                   TRAFFIC REDIRECTION                      %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
             target_port = prompt_port(" Enter target backend port (e.g., 22 for SSH, 143 for Dropbear): ", default=22)
             if not check_system_port_in_use(target_port, ("tcp",)):
                 print(f"{C_YELLOW}[!] Nothing seems to be listening on port {target_port} yet — make sure")
@@ -1275,9 +1256,9 @@ def dnstt_admin_manager(ports_dict):
             svc = _service_name(mode)
 
             clear_screen()
-            print("=====================================================")
+            print("%s═════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
             print(f"       SLOWDNS MANAGER [{mode}]")
-            print("=====================================================")
+            print("%s═════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
 
             if mode == 'masterdns':
                 key_content = _masterdns_client_info(ports_dict)
@@ -1293,7 +1274,7 @@ def dnstt_admin_manager(ports_dict):
                 print(f"      2. Edit client_config.toml: DOMAINS=[\"{domain_val}\"], ENCRYPTION_KEY")
                 print(f"         from the key above, and a resolver list in client_resolvers.txt.")
                 print("      3. Run the client — default local SOCKS5 proxy is 127.0.0.1:18000.")
-                print("=====================================================")
+                print("%s═════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
                 print(" [4] > VIEW SERVICE STATUS")
                 print(" [5] > EDIT CONFIG (server_config.toml)")
                 print(" [6] > RESTART SERVICE")
@@ -1301,7 +1282,7 @@ def dnstt_admin_manager(ports_dict):
                 print("-----------------------------------------------------")
                 print(" [8] > UNINSTALL (official uninstaller)")
                 print(" [0] > Back")
-                print("=====================================================")
+                print("%s═════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
             elif mode in ('stormdns', 'cottendns'):
                 key_content = _stormdns_client_info() if mode == 'stormdns' else _cottendns_client_info()
                 proto_note = "UDP+TCP/53" if mode == 'cottendns' else "UDP/53"
@@ -1320,7 +1301,7 @@ def dnstt_admin_manager(ports_dict):
                     print("      CottenDNS is engine-compatible with the WhiteDNS app (Android/")
                     print("      Desktop), which just needs the domain + key above. A standalone")
                     print("      CLI client is also available from TaJirax/cottenDNS's releases.")
-                print("=====================================================")
+                print("%s═════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
                 print(" [4] > VIEW SERVICE STATUS")
                 print(" [5] > EDIT CONFIG (server_config.toml)")
                 print(" [6] > RESTART SERVICE")
@@ -1329,7 +1310,7 @@ def dnstt_admin_manager(ports_dict):
                 print(" [8] > UNINSTALL SLOWDNS")
                 print(" [M] > MULTI-ENGINE MODE (run more of these at once)")
                 print(" [0] > Back")
-                print("=====================================================")
+                print("%s═════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
             else:
                 client_cmds, pub_key_content = _client_commands(mode, ports_dict)
                 print(f" SERVER IP: {server_ip} | LISTEN PORT: {custom_port}")
@@ -1342,7 +1323,7 @@ def dnstt_admin_manager(ports_dict):
                 for label, cmd in client_cmds.items():
                     print(f"      {label}:")
                     print(f"        {cmd}")
-                print("=====================================================")
+                print("%s═════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
                 print(" [1] > MODIFY DATA TRAFFIC PORT (REDIRECTION)")
                 print(" [2] > MODIFY NS DOMAIN OR IP")
                 if mode in ('dnstt', 'vaydns'):
@@ -1356,7 +1337,7 @@ def dnstt_admin_manager(ports_dict):
                 print(" [8] > UNINSTALL SLOWDNS")
                 print(" [M] > MULTI-ENGINE MODE (run more of these at once)")
                 print(" [0] > Back")
-                print("=====================================================")
+                print("%s═════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
 
             choice = input(" Select an option: ").strip()
 
@@ -1432,13 +1413,13 @@ def dnstt_admin_manager(ports_dict):
                         # Its own uninstaller correctly restores /etc/systemd/resolved.conf
                         # from backup and removes the sysctl/limits tuning it applied —
                         # reimplementing that ourselves would just risk getting it wrong.
-                        os.system(f"cd {MASTERDNS_DIR} && bash <(curl -Ls {MASTERDNS_INSTALL_URL}) --uninstall")
+                        os.system(f"cd {MASTERDNS_DIR} && curl -Ls {MASTERDNS_INSTALL_URL} | bash -s -- --uninstall")
                         print(f"{C_YELLOW}[!] Firewall rules for port 53 were intentionally left in place by the")
                         print(f"    official uninstaller — remove them manually if no longer needed.{C_RESET}")
                     elif mode == 'stormdns':
                         # Confirmed real --uninstall flag on the official installer -
                         # same reasoning as MasterDNS, prefer it over reimplementing teardown.
-                        os.system(f"cd {STORMDNS_DIR} && bash <(curl -Ls {STORMDNS_INSTALL_URL}) --uninstall")
+                        os.system(f"cd {STORMDNS_DIR} && curl -Ls {STORMDNS_INSTALL_URL} | bash -s -- --uninstall")
                         print(f"{C_YELLOW}[!] Firewall rules for port 53 were intentionally left in place by the")
                         print(f"    official uninstaller — remove them manually if no longer needed.{C_RESET}")
                     elif mode == 'cottendns':

@@ -43,6 +43,10 @@ flagging: if that Xray-bonus feature is still enabled, it and this module would
 both try to own the same hysteria-server systemd unit and config file - once
 this standalone module exists, the Xray one should probably be removed to avoid
 two installers fighting over the same service.
+
+Hysteria 1.x now lives entirely in its own module, hysteria1_manager.py -
+originally a submenu here, split out into a fully independent module (own
+binary, config schema, systemd unit) since v1 and v2 can't interconnect.
 """
 
 import os
@@ -60,18 +64,11 @@ HYSTERIA_DIR = "/etc/hysteria"
 HYSTERIA_CONFIG_PATH = f"{HYSTERIA_DIR}/config.json"
 HYSTERIA_INSTALL_URL = "https://get.hy2.sh/"  # the same URL already verified earlier in this project
 
-# Hysteria 1.x and 2.x are protocol-incompatible (confirmed straight from apernet's
-# own install script: "Hysteria 2 uses a completely redesigned protocol & config,
-# which is NOT compatible with the version 1.x.x in any way") and apernet's OFFICIAL
-# installer now auto-upgrades any v1 install to v2 rather than supporting staying on
-# v1. Since v1 is still wanted here, this uses evozi/hysteria-install's still-current
-# separate v1 installer, and every path/service name below is kept fully distinct
-# from the v2 ones above so both can coexist on the same box without colliding.
-HYSTERIA1_DIR = "/etc/hysteria/v1"
-HYSTERIA1_CONFIG_PATH = f"{HYSTERIA1_DIR}/config.json"
-HYSTERIA1_BIN = "/usr/local/bin/hysteria-v1"
-HYSTERIA1_SERVICE_PATH = "/etc/systemd/system/hysteria-v1.service"
-HYSTERIA1_INSTALL_URL = "https://raw.githubusercontent.com/evozi/hysteria-install/main/hy1/hysteria1.sh"
+# Hysteria 1.x now lives entirely in its own module, hysteria1_manager.py -
+# v1 and v2 are protocol-incompatible (confirmed straight from apernet's own
+# install script: "Hysteria 2 uses a completely redesigned protocol & config,
+# which is NOT compatible with the version 1.x.x in any way"), so they're
+# kept as fully independent modules rather than one combined file.
 
 
 def _service_active():
@@ -98,7 +95,7 @@ def _ensure_installed():
     if _run("which hysteria").returncode == 0:
         return True
     print(f"{C_CYAN}[i] Installing Hysteria2...{C_RESET}")
-    _run(f"bash <(curl -fsSL {HYSTERIA_INSTALL_URL})")
+    _run(f"curl -fsSL {HYSTERIA_INSTALL_URL} | bash")
     ok = _run("which hysteria").returncode == 0
     if not ok:
         print(f"{C_RED}[X] Hysteria2 did not install correctly - check network access.{C_RESET}")
@@ -109,7 +106,12 @@ def _generate_self_signed_cert():
     os.makedirs(HYSTERIA_DIR, exist_ok=True)
     cert_path = f"{HYSTERIA_DIR}/cert.crt"
     key_path = f"{HYSTERIA_DIR}/private.key"
-    _run(f"openssl req -x509 -nodes -newkey ec:<(openssl ecparam -name prime256v1) "
+    # Process substitution (ec:<(...)) requires bash - _run() shells out via
+    # /bin/sh, which is dash on Debian/Ubuntu and doesn't understand it.
+    # A temp file avoids the dependency on which shell actually runs this.
+    ecparam_path = f"{HYSTERIA_DIR}/.ecparam.pem"
+    _run(f"openssl ecparam -name prime256v1 -out {ecparam_path}")
+    _run(f"openssl req -x509 -nodes -newkey ec:{ecparam_path} "
          f"-keyout {key_path} -out {cert_path} -subj '/CN=bing.com' -days 36500")
     ok = os.path.exists(cert_path) and os.path.exists(key_path)
     return ok, cert_path, key_path
@@ -144,239 +146,6 @@ def _apply_config_safely(new_config, description, check_port):
     return True, f"{description} applied and verified on port {check_port}."
 
 
-# ==================== HYSTERIA v1 (legacy, separate binary/service) ====================
-
-def _service_active_v1():
-    return _run(["systemctl", "is-active", "--quiet", "hysteria-v1"]).returncode == 0
-
-
-def _restart_hysteria_v1():
-    return _run("systemctl restart hysteria-v1").returncode == 0
-
-
-def _wait_for_port_listening_v1(port, tries=6, delay=1):
-    for _ in range(tries):
-        if check_system_port_in_use(port, ("udp",)):
-            return True
-        time.sleep(delay)
-    return False
-
-
-def _ensure_installed_v1():
-    if _run(["which", "hysteria-v1"]).returncode == 0 or os.path.exists(HYSTERIA1_BIN):
-        return True
-    print(f"{C_CYAN}[i] apernet's own official installer now auto-upgrades v1 installs to v2")
-    print(f"    (they explicitly say v1 and v2 are protocol-incompatible), so this uses a")
-    print(f"    community-maintained installer that still keeps v1 separate.{C_RESET}")
-    res = _run(f"bash <(curl -fsSL {HYSTERIA1_INSTALL_URL})")
-    # That installer manages its own binary path/service name — locate whatever it
-    # actually produced rather than assume, and normalize to our own fixed path so
-    # the rest of this module has one consistent place to look.
-    for candidate in ("/usr/local/bin/hysteria", "/usr/bin/hysteria", "/root/hysteria/hysteria"):
-        if os.path.exists(candidate) and not os.path.exists(HYSTERIA1_BIN):
-            _run(f"cp {candidate} {HYSTERIA1_BIN}")
-            break
-    ok = os.path.exists(HYSTERIA1_BIN)
-    if not ok:
-        print(f"{C_RED}[X] Hysteria v1 installer did not produce a usable binary at a known path -")
-        print(f"    check network access, or install manually and place the binary at {HYSTERIA1_BIN}.{C_RESET}")
-    return ok
-
-
-def _generate_self_signed_cert_v1():
-    os.makedirs(HYSTERIA1_DIR, exist_ok=True)
-    cert_path = f"{HYSTERIA1_DIR}/cert.crt"
-    key_path = f"{HYSTERIA1_DIR}/private.key"
-    _run(f"openssl req -x509 -nodes -newkey rsa:2048 "
-         f"-keyout {key_path} -out {cert_path} -subj '/CN=bing.com' -days 36500")
-    ok = os.path.exists(cert_path) and os.path.exists(key_path)
-    return ok, cert_path, key_path
-
-
-def _write_service_v1(listen_port):
-    service_file = f"""[Unit]
-Description=Hysteria 1.x Server (legacy)
-After=network.target
-
-[Service]
-Type=simple
-User=root
-ExecStart={HYSTERIA1_BIN} server -c {HYSTERIA1_CONFIG_PATH}
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-"""
-    with open(HYSTERIA1_SERVICE_PATH, "w") as f:
-        f.write(service_file)
-    _run("systemctl daemon-reload")
-
-
-def _apply_config_safely_v1(new_config, description, check_port):
-    original = None
-    if os.path.exists(HYSTERIA1_CONFIG_PATH):
-        with open(HYSTERIA1_CONFIG_PATH, "r") as f:
-            original = f.read()
-
-    with open(HYSTERIA1_CONFIG_PATH, "w") as f:
-        json.dump(new_config, f, indent=4)
-
-    if not _restart_hysteria_v1():
-        if original is not None:
-            with open(HYSTERIA1_CONFIG_PATH, "w") as f:
-                f.write(original)
-            _restart_hysteria_v1()
-        return False, f"{description} failed to restart Hysteria v1 - reverted to the previous working config."
-
-    if not _wait_for_port_listening_v1(check_port):
-        if original is not None:
-            with open(HYSTERIA1_CONFIG_PATH, "w") as f:
-                f.write(original)
-            _restart_hysteria_v1()
-        return False, f"{description} restarted, but port {check_port} never came up - reverted. Nothing was left broken."
-
-    return True, f"{description} applied and verified on port {check_port}."
-
-
-def hysteria_v1_submenu(ports_dict):
-    """Separate submenu for the legacy v1 install - kept distinct from v2's menu
-    rather than merged into one flow, since v1 and v2 are different binaries,
-    different config schemas, and different systemd units that can coexist."""
-    while True:
-        hy1_port = ports_dict.get('HYSTERIA1_PORT', 'Not configured')
-        is_active = _service_active_v1()
-        status_label = "ON" if is_active else "OFF"
-
-        clear_screen()
-        print("================================================================")
-        print("              HYSTERIA 1.x ADMINISTRATOR (LEGACY)           ")
-        print("================================================================")
-        print(f"      PORT: {hy1_port}")
-        print(f"{C_YELLOW}      Note: v1 and v2 are protocol-incompatible - clients must use")
-        print(f"      the matching version's client, they can't interconnect.{C_RESET}")
-        print("----------------------------------------------------------------")
-        print(" [1]> CONFIGURE / INSTALL HYSTERIA 1.x (Wizard)")
-        print(" [2]> VIEW SERVICE LOGS")
-        print(" [3]> RESTART SERVICE")
-        print(f" [4]> START/STOP SERVICE [{status_label}]")
-        print("================================================================")
-        print(" [0] RETURN  [5] UNINSTALL HYSTERIA 1.x")
-        print("================================================================")
-
-        choice = input(" Enter an Option: ").strip()
-
-        if choice == '0':
-            break
-
-        elif choice == '1':
-            clear_screen()
-            print("================================================================")
-            print("             HYSTERIA 1.x SETUP WIZARD                      ")
-            print("================================================================")
-
-            listen_port = prompt_port(" Enter main listen port (e.g., 36712): ", default=36712)
-            if str(listen_port) != str(hy1_port) and check_system_port_in_use(listen_port, ("udp",)):
-                print(f"{C_RED}[X] UDP port {listen_port} is already in use by another service.{C_RESET}")
-                input("\nPress Enter to continue...")
-                continue
-
-            obfs_pass = input(" Enter OBFS password (v1 uses a flat string, blank to skip): ").strip()
-            up_mbps_raw = input(" Upload speed limit in Mbps (blank for 0 = unlimited): ").strip()
-            down_mbps_raw = input(" Download speed limit in Mbps (blank for 0 = unlimited): ").strip()
-            up_mbps = int(up_mbps_raw) if up_mbps_raw.isdigit() else 0
-            down_mbps = int(down_mbps_raw) if down_mbps_raw.isdigit() else 0
-
-            if not _ensure_installed_v1():
-                input("\nPress Enter to continue...")
-                continue
-
-            cert_ok, cert_path, key_path = _generate_self_signed_cert_v1()
-            if not cert_ok:
-                print(f"{C_RED}[X] Certificate generation failed - cannot proceed without one.{C_RESET}")
-                input("\nPress Enter to continue...")
-                continue
-
-            # Real v1 schema, confirmed directly from an actual v1.3.2 server's own
-            # output (flat obfs string, flat up_mbps/down_mbps - NOT the nested
-            # objects v2 uses) - not assumed by analogy with v2.
-            config_data = {
-                "listen": f":{listen_port}",
-                "protocol": "udp",
-                "cert": cert_path,
-                "key": key_path,
-                "up_mbps": up_mbps,
-                "down_mbps": down_mbps,
-            }
-            if obfs_pass:
-                config_data["obfs"] = obfs_pass
-
-            _write_service_v1(listen_port)
-            open_firewall_port(listen_port, ("udp",))
-            persist_firewall_rules()
-            _run("systemctl enable hysteria-v1")
-
-            ok, msg = _apply_config_safely_v1(config_data, f"Hysteria v1 on port {listen_port}", listen_port)
-            if ok:
-                ports_dict['HYSTERIA1_PORT'] = str(listen_port)
-                print(f"{C_GREEN}[OK] {msg}{C_RESET}")
-            else:
-                close_firewall_port(listen_port, ("udp",))
-                print(f"{C_RED}[X] {msg}{C_RESET}")
-            input("\nPress Enter to continue...")
-
-        elif choice == '2':
-            clear_screen()
-            print("================================================================")
-            print("                 HYSTERIA 1.x SERVICE LOGS                  ")
-            print("================================================================")
-            os.system("journalctl -u hysteria-v1 -n 50 --no-pager")
-            input("\nPress Enter to continue...")
-
-        elif choice == '3':
-            if _restart_hysteria_v1():
-                print(f"{C_GREEN}[OK] Hysteria v1 service restarted successfully.{C_RESET}")
-            else:
-                print(f"{C_RED}[X] Hysteria v1 failed to restart - check 'journalctl -u hysteria-v1'.{C_RESET}")
-            input("\nPress Enter to continue...")
-
-        elif choice == '4':
-            if is_active:
-                _run("systemctl stop hysteria-v1")
-                print(f"{C_YELLOW}[!] Hysteria v1 service stopped.{C_RESET}")
-            else:
-                _run("systemctl start hysteria-v1")
-                if _service_active_v1():
-                    print(f"{C_GREEN}[OK] Hysteria v1 service started.{C_RESET}")
-                else:
-                    print(f"{C_RED}[X] Hysteria v1 failed to start - check 'journalctl -u hysteria-v1'.{C_RESET}")
-            input("\nPress Enter to continue...")
-
-        elif choice == '5':
-            clear_screen()
-            print("================================================================")
-            print("                UNINSTALL HYSTERIA 1.x                      ")
-            print("================================================================")
-            confirm = input(" Are you sure you want to completely remove Hysteria 1.x? (y/n): ").strip().lower()
-            if confirm == 'y':
-                _run("systemctl stop hysteria-v1")
-                _run("systemctl disable hysteria-v1")
-                _run(f"rm -rf {HYSTERIA1_DIR} {HYSTERIA1_BIN} {HYSTERIA1_SERVICE_PATH}")
-                _run("systemctl daemon-reload")
-                if str(hy1_port).isdigit():
-                    close_firewall_port(int(hy1_port), ("udp",))
-                    persist_firewall_rules()
-                ports_dict.pop('HYSTERIA1_PORT', None)
-                print(f"{C_GREEN}[OK] Hysteria 1.x removed and purged successfully.{C_RESET}")
-            else:
-                print(f"{C_YELLOW}[i] Uninstallation cancelled.{C_RESET}")
-            input("\nPress Enter to continue...")
-
-        else:
-            print(f"{C_RED}Invalid option.{C_RESET}")
-            input("\nPress Enter to continue...")
-
-
 def hysteria_admin_manager(ports_dict):
     """Hysteria2 Administrator Module."""
     while True:
@@ -386,9 +155,9 @@ def hysteria_admin_manager(ports_dict):
         status_label = "ON" if is_active else "OFF"
 
         clear_screen()
-        print("================================================================")
-        print("                    HYSTERIA2 ADMINISTRATOR                 ")
-        print("================================================================")
+        print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+        print("%s                    HYSTERIA2 ADMINISTRATOR                 %s" % (C_BOLD, C_RESET))
+        print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
         print(f"      PORT: {hysteria_port}  |  PORT-HOP RANGE: {hysteria_range}")
         print("----------------------------------------------------------------")
         print(" [1]> CONFIGURE / INSTALL HYSTERIA2 (Wizard)")
@@ -398,24 +167,20 @@ def hysteria_admin_manager(ports_dict):
         print(" [5]> VIEW SERVICE LOGS")
         print(" [6]> RESTART SERVICE")
         print(f" [7]> START/STOP SERVICE [{status_label}]")
-        print(" [9]> HYSTERIA 1.x (LEGACY) SUBMENU")
-        print("================================================================")
+        print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
         print(" [0] RETURN  [8] UNINSTALL HYSTERIA2")
-        print("================================================================")
+        print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
 
         choice = input(" Enter an Option: ").strip()
 
         if choice == '0':
             break
 
-        elif choice == '9':
-            hysteria_v1_submenu(ports_dict)
-
         elif choice == '1':
             clear_screen()
-            print("================================================================")
-            print("               HYSTERIA2 SETUP WIZARD                       ")
-            print("================================================================")
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s               HYSTERIA2 SETUP WIZARD                       %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
 
             listen_port = prompt_port(" Enter main listen port (e.g., 443): ", default=443)
             if str(listen_port) != str(hysteria_port) and check_system_port_in_use(listen_port, ("udp",)):
@@ -486,9 +251,9 @@ def hysteria_admin_manager(ports_dict):
 
         elif choice == '2':
             clear_screen()
-            print("================================================================")
-            print("                  PORT HOPPING SETUP                        ")
-            print("================================================================")
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s                  PORT HOPPING SETUP                        %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
             print(" Port hopping spreads client traffic across a wide UDP port range")
             print(" that all redirect to your real listen port - this is a real,")
             print(" documented Hysteria2 feature, set up at the firewall/NAT level.")
@@ -536,9 +301,9 @@ def hysteria_admin_manager(ports_dict):
 
         elif choice == '3':
             clear_screen()
-            print("================================================================")
-            print("                CONFIGURE OBFS & AUTHENTICATION             ")
-            print("================================================================")
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s                CONFIGURE OBFS & AUTHENTICATION             %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
             if not os.path.exists(HYSTERIA_CONFIG_PATH):
                 print(f"{C_RED}[X] Configuration file not found. Please run the setup wizard first.{C_RESET}")
                 input("\nPress Enter to continue...")
@@ -581,9 +346,9 @@ def hysteria_admin_manager(ports_dict):
 
         elif choice == '5':
             clear_screen()
-            print("================================================================")
-            print("                   HYSTERIA SERVICE LOGS                    ")
-            print("================================================================")
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s                   HYSTERIA SERVICE LOGS                    %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
             os.system("journalctl -u hysteria-server -n 50 --no-pager 2>/dev/null || journalctl -u hysteria -n 50 --no-pager")
             input("\nPress Enter to continue...")
 
@@ -609,9 +374,9 @@ def hysteria_admin_manager(ports_dict):
 
         elif choice == '8':
             clear_screen()
-            print("================================================================")
-            print("                    UNINSTALL HYSTERIA2                     ")
-            print("================================================================")
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s                    UNINSTALL HYSTERIA2                     %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
             confirm = input(" Are you sure you want to completely remove Hysteria2? (y/n): ").strip().lower()
             if confirm == 'y':
                 _run("systemctl stop hysteria-server")

@@ -447,9 +447,9 @@ def psiphon_admin_manager(ports_dict):
         instance_count = len(credentials)
 
         clear_screen()
-        print("================================================================")
-        print("                 PSIPHON (OSSH) ADMINISTRATOR               ")
-        print("================================================================")
+        print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+        print("%s                 PSIPHON (OSSH) ADMINISTRATOR               %s" % (C_BOLD, C_RESET))
+        print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
         print("      INSTANCES: %s  |  GATE PORT: %s" % (instance_count, gate_port))
         print("%s      Standalone Obfuscated-SSH - does not join the real Psiphon" % C_YELLOW)
         print("      network. Clients need the generated client.config, not the")
@@ -462,9 +462,9 @@ def psiphon_admin_manager(ports_dict):
         print(" [3]> REMOVE INSTANCE")
         print(" [4]> VIEW GATE SERVICE LOGS")
         print(" [5]> RESTART GATE SERVICE")
-        print("================================================================")
+        print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
         print(" [0] RETURN")
-        print("================================================================")
+        print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
 
         choice = input(" Enter an Option: ").strip()
 
@@ -473,9 +473,9 @@ def psiphon_admin_manager(ports_dict):
 
         elif choice == '1':
             clear_screen()
-            print("================================================================")
-            print("               ADD PSIPHON INSTANCE                         ")
-            print("================================================================")
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s               ADD PSIPHON INSTANCE                         %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
 
             instance_name = input(" Instance/customer name (letters, numbers, hyphens): ").strip()
             if not instance_name or not re.match(r'^[a-zA-Z0-9_-]+$', instance_name):
@@ -567,9 +567,9 @@ def psiphon_admin_manager(ports_dict):
 
         elif choice == '2':
             clear_screen()
-            print("================================================================")
-            print("                 INSTANCES / CONNECTION INFO                ")
-            print("================================================================")
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s                 INSTANCES / CONNECTION INFO                %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
             if not credentials:
                 print("%s No instances configured.%s" % (C_YELLOW, C_RESET))
             else:

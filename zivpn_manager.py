@@ -177,9 +177,9 @@ def zivpn_admin_manager(ports_dict):
         status_label = "ON" if is_active else "OFF"
 
         clear_screen()
-        print("================================================================")
-        print("                 ZIVPN (UDP CUSTOM) ADMINISTRATOR           ")
-        print("================================================================")
+        print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+        print("%s                 ZIVPN (UDP CUSTOM) ADMINISTRATOR           %s" % (C_BOLD, C_RESET))
+        print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
         print(f"      PORT: {zivpn_port}  |  PASSWORDS CONFIGURED: {password_count}")
         print("----------------------------------------------------------------")
         print(" [1]> INSTALL / RECONFIGURE ZIVPN")
@@ -188,9 +188,9 @@ def zivpn_admin_manager(ports_dict):
         print(" [4]> VIEW SERVICE LOGS")
         print(" [5]> RESTART SERVICE")
         print(f" [6]> START/STOP SERVICE [{status_label}]")
-        print("================================================================")
+        print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
         print(" [0] RETURN  [7] UNINSTALL ZIVPN")
-        print("================================================================")
+        print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
 
         choice = input(" Enter an Option: ").strip()
 
@@ -199,9 +199,9 @@ def zivpn_admin_manager(ports_dict):
 
         elif choice == '1':
             clear_screen()
-            print("================================================================")
-            print("               ZIVPN INSTALL / SETUP WIZARD                 ")
-            print("================================================================")
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s               ZIVPN INSTALL / SETUP WIZARD                 %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
 
             listen_port = prompt_port(" Enter desired UDP Listen Port (e.g., 5667): ", default=5667)
             if str(listen_port) != str(zivpn_port) and check_system_port_in_use(listen_port, ("udp",)):
@@ -253,9 +253,9 @@ def zivpn_admin_manager(ports_dict):
 
         elif choice == '2':
             clear_screen()
-            print("================================================================")
-            print("                     MANAGE PASSWORDS                       ")
-            print("================================================================")
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s                     MANAGE PASSWORDS                       %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
             if not os.path.exists(ZIVPN_CONFIG_PATH):
                 print(f"{C_RED}[X] Not installed yet - run option 1 first.{C_RESET}")
                 input("\nPress Enter to continue...")
@@ -325,9 +325,9 @@ def zivpn_admin_manager(ports_dict):
 
         elif choice == '4':
             clear_screen()
-            print("================================================================")
-            print("                     ZIVPN SERVICE LOGS                     ")
-            print("================================================================")
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s                     ZIVPN SERVICE LOGS                     %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
             os.system("journalctl -u zivpn -n 50 --no-pager")
             input("\nPress Enter to continue...")
 
@@ -356,9 +356,9 @@ def zivpn_admin_manager(ports_dict):
 
         elif choice == '7':
             clear_screen()
-            print("================================================================")
-            print("                    UNINSTALL ZIVPN                         ")
-            print("================================================================")
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s                    UNINSTALL ZIVPN                         %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
             confirm = input(" Are you sure you want to completely remove ZIVPN? (y/n): ").strip().lower()
             if confirm == 'y':
                 _run("systemctl stop zivpn")

@@ -153,9 +153,9 @@ def stunnel_admin_manager(ports_dict):
         status_label = "ON" if is_active else "OFF"
 
         clear_screen()
-        print("════════════════════════════════════════════════════════════")
-        print("                     STUNNEL ADMINISTRATOR                  ")
-        print("════════════════════════════════════════════════════════════")
+        print("%s════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+        print("%s                     STUNNEL ADMINISTRATOR                  %s" % (C_BOLD, C_RESET))
+        print("%s════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
         print(f"      SSL PORTS: {stunnel_ports}")
         print("────────────────────────────────────────────────────────────")
         print(" [1]> ADD SSL / STUNNEL PORT")
@@ -164,9 +164,9 @@ def stunnel_admin_manager(ports_dict):
         print(" [4]> VIEW STUNNEL LOGS")
         print(" [5]> RESTART STUNNEL SERVICE")
         print(f" [6]> START/STOP STUNNEL SERVICE [{status_label}]")
-        print("════════════════════════════════════════════════════════════")
+        print("%s════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
         print(" [0] RETURN  [7] UNINSTALL STUNNEL4")
-        print("════════════════════════════════════════════════════════════")
+        print("%s════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
 
         choice = input(" Enter an Option: ").strip()
 
@@ -175,9 +175,9 @@ def stunnel_admin_manager(ports_dict):
 
         elif choice == '1':
             clear_screen()
-            print("════════════════════════════════════════════════════════════")
-            print("             MANUAL SSL / STUNNEL PORT SETUP                ")
-            print("════════════════════════════════════════════════════════════")
+            print("%s════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s             MANUAL SSL / STUNNEL PORT SETUP                %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
 
             new_port = prompt_port(" Enter desired SSL Listen Port (e.g., 443): ", default=443)
             existing = _tracked_ports(ports_dict)
@@ -229,9 +229,9 @@ def stunnel_admin_manager(ports_dict):
 
         elif choice == '3':
             clear_screen()
-            print("════════════════════════════════════════════════════════════")
-            print("                 CONFIGURE SSL CERTIFICATE                  ")
-            print("════════════════════════════════════════════════════════════")
+            print("%s════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s                 CONFIGURE SSL CERTIFICATE                  %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
             print(" [1] Generate Self-Signed SSL Certificate (.pem)")
             print(" [2] Paste Custom Certificate / Key Manually")
             print(" [0] Back")
@@ -282,9 +282,9 @@ def stunnel_admin_manager(ports_dict):
 
         elif choice == '4':
             clear_screen()
-            print("════════════════════════════════════════════════════════════")
-            print("                 STUNNEL SERVICE LOGS                       ")
-            print("════════════════════════════════════════════════════════════")
+            print("%s════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s                 STUNNEL SERVICE LOGS                       %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
             os.system("journalctl -u stunnel4 -n 50 --no-pager")
             input("\nPress Enter to continue...")
 
@@ -310,9 +310,9 @@ def stunnel_admin_manager(ports_dict):
 
         elif choice == '7':
             clear_screen()
-            print("════════════════════════════════════════════════════════════")
-            print("                    UNINSTALL STUNNEL4                      ")
-            print("════════════════════════════════════════════════════════════")
+            print("%s════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s                    UNINSTALL STUNNEL4                      %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
             confirm = input(" Are you sure you want to completely remove Stunnel4? (y/n): ").strip().lower()
             if confirm == 'y':
                 _run("systemctl stop stunnel4 && systemctl disable stunnel4")

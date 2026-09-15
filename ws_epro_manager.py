@@ -217,9 +217,9 @@ def ws_epro_admin_manager(ports_dict):
         status_label = "ON" if is_active else "OFF"
 
         clear_screen()
-        print("================================================================")
-        print("                    WS-EPRO ADMINISTRATOR                   ")
-        print("================================================================")
+        print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+        print("%s                    WS-EPRO ADMINISTRATOR                   %s" % (C_BOLD, C_RESET))
+        print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
         print(f"      PORT: {ws_port}  |  REDIRECTION TARGET: {ws_target}")
         print("----------------------------------------------------------------")
         print(" [1]> CONFIGURE / INSTALL WS-EPRO")
@@ -227,9 +227,9 @@ def ws_epro_admin_manager(ports_dict):
         print(" [3]> VIEW SERVICE LOGS")
         print(" [4]> RESTART WS-EPRO SERVICE")
         print(f" [5]> START/STOP WS-EPRO SERVICE [{status_label}]")
-        print("================================================================")
+        print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
         print(" [0] RETURN  [6] UNINSTALL WS-EPRO")
-        print("================================================================")
+        print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
 
         choice = input(" Enter an Option: ").strip()
 
@@ -238,9 +238,9 @@ def ws_epro_admin_manager(ports_dict):
 
         elif choice == '1':
             clear_screen()
-            print("================================================================")
-            print("             WS-EPRO INSTALLATION WIZARD                    ")
-            print("================================================================")
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s             WS-EPRO INSTALLATION WIZARD                    %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
 
             listen_port = prompt_port(" Enter desired WebSocket listen port (e.g., 2082 or 80): ", default=2082)
             if str(listen_port) != str(ws_port) and check_system_port_in_use(listen_port, ("tcp",)):
@@ -275,9 +275,9 @@ def ws_epro_admin_manager(ports_dict):
 
         elif choice == '2':
             clear_screen()
-            print("================================================================")
-            print("           MODIFY PORT & TRAFFIC REDIRECTION TARGET         ")
-            print("================================================================")
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s           MODIFY PORT & TRAFFIC REDIRECTION TARGET         %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
             new_port = prompt_port(f" Enter new WebSocket listen port [Current: {ws_port}]: ",
                                     default=int(ws_port) if str(ws_port).isdigit() else 2082)
             new_target = prompt_port(f" Enter new redirection target port [Current: {ws_target}]: ",
@@ -313,9 +313,9 @@ def ws_epro_admin_manager(ports_dict):
 
         elif choice == '3':
             clear_screen()
-            print("================================================================")
-            print("                    WS-EPRO SERVICE LOGS                    ")
-            print("================================================================")
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s                    WS-EPRO SERVICE LOGS                    %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
             os.system("journalctl -u ws-epro -n 50 --no-pager")
             input("\nPress Enter to continue...")
 
@@ -344,9 +344,9 @@ def ws_epro_admin_manager(ports_dict):
 
         elif choice == '6':
             clear_screen()
-            print("================================================================")
-            print("                    UNINSTALL WS-EPRO                       ")
-            print("================================================================")
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s                    UNINSTALL WS-EPRO                       %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
             confirm = input(" Are you sure you want to completely remove WS-EPRO? (y/n): ").strip().lower()
             if confirm == 'y':
                 _run("systemctl stop ws-epro")

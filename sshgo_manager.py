@@ -217,9 +217,9 @@ def sshgo_admin_manager(ports_dict):
         status_label = "ON" if is_active else "OFF"
 
         clear_screen()
-        print("================================================================")
-        print("                     SSHGO ADMINISTRATOR                    ")
-        print("================================================================")
+        print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+        print("%s                     SSHGO ADMINISTRATOR                    %s" % (C_BOLD, C_RESET))
+        print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
         print("      PORT: %s  |  MODE: %s  |  TARGET: %s" % (sshgo_port, sshgo_mode.upper(), sshgo_target))
         print("----------------------------------------------------------------")
         print(" [1]> CONFIGURE / INSTALL SSHGO PROXY (Wizard)")
@@ -227,9 +227,9 @@ def sshgo_admin_manager(ports_dict):
         print(" [3]> VIEW SERVICE LOGS")
         print(" [4]> RESTART SSHGO SERVICE")
         print(" [5]> START/STOP SSHGO SERVICE [%s]" % status_label)
-        print("================================================================")
+        print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
         print(" [0] RETURN  [6] UNINSTALL SSHGO")
-        print("================================================================")
+        print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
 
         choice = input(" Enter an Option: ").strip()
 
@@ -238,9 +238,9 @@ def sshgo_admin_manager(ports_dict):
 
         elif choice == '1':
             clear_screen()
-            print("================================================================")
-            print("           SSHGO INSTALLATION WIZARD                        ")
-            print("================================================================")
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s           SSHGO INSTALLATION WIZARD                        %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
 
             listen_port = prompt_port(" Enter desired SSHGO listen port (e.g., 2222 or 443): ", default=2222)
             if str(listen_port) != str(sshgo_port) and check_system_port_in_use(listen_port, ("tcp",)):
@@ -285,9 +285,9 @@ def sshgo_admin_manager(ports_dict):
 
         elif choice == '2':
             clear_screen()
-            print("================================================================")
-            print("           CHANGE PORT & TUNNEL MODE SETTINGS               ")
-            print("================================================================")
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s           CHANGE PORT & TUNNEL MODE SETTINGS               %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
             if not os.path.exists(SERVICE_PATH):
                 print("%s[X] Not installed yet - run option 1 first.%s" % (C_RED, C_RESET))
                 input("\nPress Enter to continue...")
@@ -330,9 +330,9 @@ def sshgo_admin_manager(ports_dict):
 
         elif choice == '3':
             clear_screen()
-            print("================================================================")
-            print("                     SSHGO SERVICE LOGS                     ")
-            print("================================================================")
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s                     SSHGO SERVICE LOGS                     %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
             os.system("journalctl -u sshgo -n 50 --no-pager")
             input("\nPress Enter to continue...")
 
@@ -361,9 +361,9 @@ def sshgo_admin_manager(ports_dict):
 
         elif choice == '6':
             clear_screen()
-            print("================================================================")
-            print("                    UNINSTALL SSHGO                         ")
-            print("================================================================")
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s                    UNINSTALL SSHGO                         %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
             confirm = input(" Are you sure you want to completely remove SSHGO? (y/n): ").strip().lower()
             if confirm == 'y':
                 _run("systemctl stop sshgo && systemctl disable sshgo")

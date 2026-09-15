@@ -193,9 +193,9 @@ def squid_admin_manager(ports_dict):
         user_count = _user_count()
 
         clear_screen()
-        print("================================================================")
-        print("                  SQUID PROXY ADMINISTRATOR                 ")
-        print("================================================================")
+        print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+        print("%s                  SQUID PROXY ADMINISTRATOR                 %s" % (C_BOLD, C_RESET))
+        print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
         print("      PROXY PORT: %s  |  AUTHENTICATED USERS: %s" % (squid_port, user_count))
         print("----------------------------------------------------------------")
         print(" [1]> CONFIGURE / INSTALL SQUID PROXY (Wizard)")
@@ -205,9 +205,9 @@ def squid_admin_manager(ports_dict):
         print(" [5]> VIEW SERVICE LOGS")
         print(" [6]> RESTART SQUID SERVICE")
         print(" [7]> START/STOP SQUID SERVICE [%s]" % status_label)
-        print("================================================================")
+        print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
         print(" [0] RETURN  [8] UNINSTALL SQUID")
-        print("================================================================")
+        print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
 
         choice = input(" Enter an Option: ").strip()
 
@@ -216,9 +216,9 @@ def squid_admin_manager(ports_dict):
 
         elif choice == '1':
             clear_screen()
-            print("================================================================")
-            print("            SQUID PROXY INSTALLATION WIZARD                 ")
-            print("================================================================")
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s            SQUID PROXY INSTALLATION WIZARD                 %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
             print("%s Squid will require a username and password to use - an open," % C_YELLOW)
             print(" unauthenticated proxy is a real abuse risk, not a convenience.%s\n" % C_RESET)
 
@@ -268,9 +268,9 @@ def squid_admin_manager(ports_dict):
 
         elif choice == '2':
             clear_screen()
-            print("================================================================")
-            print("                   MODIFY SQUID PORT                        ")
-            print("================================================================")
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s                   MODIFY SQUID PORT                        %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
             if not os.path.exists(SQUID_CONF_PATH):
                 print("%s[X] Not installed yet - run option 1 first.%s" % (C_RED, C_RESET))
                 input("\nPress Enter to continue...")
@@ -307,9 +307,9 @@ def squid_admin_manager(ports_dict):
 
         elif choice == '3':
             clear_screen()
-            print("================================================================")
-            print("                     MANAGE USERS                           ")
-            print("================================================================")
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s                     MANAGE USERS                           %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
             if not os.path.exists(SQUID_PASSWD_PATH):
                 print("%s[X] Not installed yet - run option 1 first.%s" % (C_RED, C_RESET))
                 input("\nPress Enter to continue...")
@@ -369,9 +369,9 @@ def squid_admin_manager(ports_dict):
 
         elif choice == '5':
             clear_screen()
-            print("================================================================")
-            print("                    SQUID SERVICE LOGS                      ")
-            print("================================================================")
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s                    SQUID SERVICE LOGS                      %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
             os.system("journalctl -u squid -n 50 --no-pager")
             input("\nPress Enter to continue...")
 
@@ -402,9 +402,9 @@ def squid_admin_manager(ports_dict):
 
         elif choice == '8':
             clear_screen()
-            print("================================================================")
-            print("                    UNINSTALL SQUID                         ")
-            print("================================================================")
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s                    UNINSTALL SQUID                         %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
             confirm = input(" Are you sure you want to completely remove Squid Proxy? (y/n): ").strip().lower()
             if confirm == 'y':
                 _run("systemctl stop squid && systemctl disable squid")

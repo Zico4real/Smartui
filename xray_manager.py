@@ -665,12 +665,12 @@ def mark_stage1_complete():
 def stage_1_installer():
     while True:
         clear_screen()
-        print("════════════════════════════════════════════════════════════")
-        print("                 V2RAY/XRAY ADMINISTRATOR                   ")
-        print("════════════════════════════════════════════════════════════")
+        print("%s════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+        print("%s                 V2RAY/XRAY ADMINISTRATOR                   %s" % (C_BOLD, C_RESET))
+        print("%s════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
         print(" [0] Return / Exit")
         print(" [1] INSTALL V2RAY/XRAY")
-        print("════════════════════════════════════════════════════════════")
+        print("%s════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
 
         choice = input("Enter an Option: ").strip()
 
@@ -687,16 +687,16 @@ def stage_1_installer():
 
             while True:
                 clear_screen()
-                print("════════════════════════════════════════════════════════════")
-                print("                 SSL CERTIFICATE GENERATOR                  ")
-                print("════════════════════════════════════════════════════════════")
+                print("%s════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+                print("%s                 SSL CERTIFICATE GENERATOR                  %s" % (C_BOLD, C_RESET))
+                print("%s════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
                 print(" [1]> Let's Encrypt")
                 print(" [2]> Zerossl")
                 print(" [3]> Mode Manual")
                 print(" [4]> Url link (.zip)")
-                print("════════════════════════════════════════════════════════════")
+                print("%s════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
                 print(" [0] Return")
-                print("════════════════════════════════════════════════════════════")
+                print("%s════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
 
                 ssl_choice = input("Enter an Option: ").strip()
 
@@ -2314,7 +2314,7 @@ def main_menu():
         print(f"  {C_GREEN}[11]{C_RESET} Hysteria2 (QUIC) Management [bonus protocol]")
         print(f"  {C_GREEN}[12]{C_RESET} Uninstall V2ray/Xray script")
         print(f"  {C_RED}[0]{C_RESET} Exit")
-        print("════════════════════════════════════════════════════════════")
+        print("%s════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
 
         choice = input(f"{C_BOLD}Select Option [0-12]: {C_RESET}").strip()
 

@@ -165,9 +165,9 @@ def badvpn_admin_manager(ports_dict):
         status_label = "ON" if is_active else "OFF"
 
         clear_screen()
-        print("================================================================")
-        print("                   BADVPN-UDPGW ADMINISTRATOR               ")
-        print("================================================================")
+        print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+        print("%s                   BADVPN-UDPGW ADMINISTRATOR               %s" % (C_BOLD, C_RESET))
+        print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
         print(f"      UDPGW PORT: {badvpn_port}")
         print("----------------------------------------------------------------")
         print(" [1]> CONFIGURE / INSTALL BADVPN-UDPGW")
@@ -175,9 +175,9 @@ def badvpn_admin_manager(ports_dict):
         print(" [3]> VIEW SERVICE LOGS")
         print(" [4]> RESTART BADVPN SERVICE")
         print(f" [5]> START/STOP BADVPN SERVICE [{status_label}]")
-        print("================================================================")
+        print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
         print(" [0] RETURN  [6] UNINSTALL BADVPN-UDPGW")
-        print("================================================================")
+        print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
 
         choice = input(" Enter an Option: ").strip()
 
@@ -186,9 +186,9 @@ def badvpn_admin_manager(ports_dict):
 
         elif choice == '1':
             clear_screen()
-            print("================================================================")
-            print("          BADVPN-UDPGW INSTALLATION WIZARD                  ")
-            print("================================================================")
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s          BADVPN-UDPGW INSTALLATION WIZARD                  %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
 
             listen_port = prompt_port(" Enter desired BADVPN-UDPGW listen port (e.g., 7300): ", default=7300)
             if str(listen_port) != str(badvpn_port) and check_system_port_in_use(listen_port, ("udp",)):
@@ -228,9 +228,9 @@ def badvpn_admin_manager(ports_dict):
 
         elif choice == '2':
             clear_screen()
-            print("================================================================")
-            print("                   CHANGE GATEWAY PORT                      ")
-            print("================================================================")
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s                   CHANGE GATEWAY PORT                      %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
             if not _binary_ok():
                 print(f"{C_RED}[X] Not installed yet - run option 1 first.{C_RESET}")
                 input("\nPress Enter to continue...")
@@ -278,9 +278,9 @@ def badvpn_admin_manager(ports_dict):
 
         elif choice == '3':
             clear_screen()
-            print("================================================================")
-            print("                   BADVPN SERVICE LOGS                      ")
-            print("================================================================")
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s                   BADVPN SERVICE LOGS                      %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
             os.system("journalctl -u badvpn -n 50 --no-pager")
             input("\nPress Enter to continue...")
 
@@ -309,9 +309,9 @@ def badvpn_admin_manager(ports_dict):
 
         elif choice == '6':
             clear_screen()
-            print("================================================================")
-            print("                  UNINSTALL BADVPN-UDPGW                    ")
-            print("================================================================")
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s                  UNINSTALL BADVPN-UDPGW                    %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
             confirm = input(" Are you sure you want to completely remove BadVPN-UDPGW? (y/n): ").strip().lower()
             if confirm == 'y':
                 _run("systemctl stop badvpn")

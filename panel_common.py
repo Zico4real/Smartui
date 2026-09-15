@@ -20,10 +20,43 @@ C_RED = "\033[91m"
 C_GREEN = "\033[92m"
 C_YELLOW = "\033[93m"
 C_CYAN = "\033[96m"
+C_MAGENTA = "\033[95m"
 
 
 def clear_screen():
     os.system('clear' if os.name == 'posix' else 'cls')
+
+
+def get_public_ip():
+    """Shared, single source of truth for the server's own public IP - used
+    everywhere a module previously asked the admin to type it in manually."""
+    try:
+        result = subprocess.run(
+            "curl -s ifconfig.me || hostname -I | awk '{print $1}'",
+            shell=True, executable="/bin/bash", capture_output=True, text=True, timeout=10,
+        )
+        ip = result.stdout.strip()
+        return ip if ip else "127.0.0.1"
+    except Exception:
+        return "127.0.0.1"
+
+
+def print_header(title, width=64):
+    """Shared menu-header style, matching the homepage (smartui_main.py) look
+    exactly: a cyan double-line divider, a bold centered title, then another
+    divider. Every module should call this instead of building its own
+    ad-hoc header - before this existed, headers were inconsistent across
+    modules (plain '=' vs the '═' box-drawing character, some colored, most
+    not), which is what made only the homepage look distinct."""
+    print("%s%s%s" % (C_CYAN, "═" * width, C_RESET))
+    print("%s%s%s" % (C_BOLD, title.center(width), C_RESET))
+    print("%s%s%s" % (C_CYAN, "═" * width, C_RESET))
+
+
+def print_divider(width=64):
+    """A plain divider line in the same style, for use between sections of
+    a menu without repeating a title."""
+    print("%s%s%s" % (C_CYAN, "─" * width, C_RESET))
 
 
 def run_cmd(cmd, **kw):

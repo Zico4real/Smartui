@@ -66,6 +66,7 @@ from panel_common import (
 
 REGISTRY_DIR = "/etc/ssh_users"
 REGISTRY_PATH = "%s/registry.json" % REGISTRY_DIR
+PASSWORD_STORE_PATH = "%s/plaintext_passwords.json" % REGISTRY_DIR
 ENFORCER_SCRIPT_PATH = "/usr/local/bin/ssh-user-enforcer.py"
 CRON_PATH = "/etc/cron.d/ssh-user-enforcer"
 QUOTA_CHAIN_PREFIX = "sshquota_"
@@ -190,6 +191,30 @@ def _save_registry(data):
     os.chmod(REGISTRY_PATH, 0o600)
 
 
+def _load_password_store():
+    """Plaintext password storage, kept only because listing accounts with
+    their passwords was explicitly requested after being told what it costs:
+    real Linux account passwords are one-way hashed in /etc/shadow (nobody,
+    not even root, can reverse that), and the panel's own registry never
+    stored them either since login never needed to read them back. This is a
+    genuine security tradeoff, not a neutral convenience - this file is a
+    single point of failure containing every customer's password in
+    cleartext, unlike individual system hashes which each require separately
+    cracking. Kept permission-locked to 0600 and cleaned up automatically
+    everywhere a user is removed, but the tradeoff itself doesn't go away."""
+    if not os.path.exists(PASSWORD_STORE_PATH):
+        return {}
+    with open(PASSWORD_STORE_PATH) as f:
+        return json.load(f)
+
+
+def _save_password_store(data):
+    os.makedirs(REGISTRY_DIR, exist_ok=True)
+    with open(PASSWORD_STORE_PATH, "w") as f:
+        json.dump(data, f, indent=2)
+    os.chmod(PASSWORD_STORE_PATH, 0o600)
+
+
 def _valid_username(username):
     return bool(USERNAME_PATTERN.match(username))
 
@@ -308,9 +333,9 @@ def _real_expiry_check(username):
 
 def add_user(ports_dict):
     clear_screen()
-    print("================================================================")
-    print("                       ADD NEW USER                         ")
-    print("================================================================")
+    print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+    print("%s                       ADD NEW USER                         %s" % (C_BOLD, C_RESET))
+    print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
 
     username = input(" Username: ").strip()
     if not _valid_username(username):
@@ -395,6 +420,10 @@ def add_user(ports_dict):
     }
     _save_registry(registry)
 
+    password_store = _load_password_store()
+    password_store[username] = password
+    _save_password_store(password_store)
+
     print("\n%s[OK] User '%s' created (expires %s, connections: %s, quota: %s).%s" % (
         C_GREEN, username, expiry_date, max_connections or 'unlimited',
         quota_label if quota_enabled else 'disabled', C_RESET))
@@ -434,9 +463,9 @@ def ssh_user_admin_manager(ports_dict):
         user_count = len(registry)
 
         clear_screen()
-        print("================================================================")
-        print("                  SSH USER ADMINISTRATOR                    ")
-        print("================================================================")
+        print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+        print("%s                  SSH USER ADMINISTRATOR                    %s" % (C_BOLD, C_RESET))
+        print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
         print("      REGISTERED USERS: %s" % user_count)
         print("----------------------------------------------------------------")
         print(" [1]> ADD NEW USER")
@@ -449,9 +478,9 @@ def ssh_user_admin_manager(ports_dict):
         print(" [8]> DELETE ALL USERS")
         print(" [9]> VIEW ACTIVE ONLINE USERS")
         print(" [10]> VIEW USERS WITH SHARED ACCOUNT")
-        print("================================================================")
+        print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
         print(" [0] RETURN")
-        print("================================================================")
+        print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
 
         choice = input(" Enter an Option: ").strip()
 
@@ -463,12 +492,13 @@ def ssh_user_admin_manager(ports_dict):
 
         elif choice == '2':
             clear_screen()
-            print("================================================================")
-            print("                      USER LIST                             ")
-            print("================================================================")
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s                      USER LIST                             %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
             if not registry:
                 print("%s No users registered.%s" % (C_YELLOW, C_RESET))
             else:
+                password_store = _load_password_store()
                 now = datetime.now()
                 for uname, rec in registry.items():
                     expiry = rec.get("expiry", "N/A")
@@ -482,8 +512,9 @@ def ssh_user_admin_manager(ports_dict):
                         total_gb = rec["quota_bytes"] / GB
                         quota_str = "%.2f/%.0fGB" % (used_gb, total_gb)
                     lock_tag = ("%s[LOCKED]%s" % (C_RED, C_RESET)) if rec.get("locked") else ""
-                    print(" %-16s expires in %4s days  conns:%-4s  quota:%-16s %s" % (
-                        uname, days_left, rec.get('max_connections') or '\u221e', quota_str, lock_tag))
+                    password_display = password_store.get(uname, "(not on file)")
+                    print(" %-16s pass:%-16s expires in %4s days  conns:%-4s  quota:%-16s %s" % (
+                        uname, password_display, days_left, rec.get('max_connections') or '\u221e', quota_str, lock_tag))
             input("\nPress Enter to continue...")
 
         elif choice == '3':
@@ -557,6 +588,9 @@ def ssh_user_admin_manager(ports_dict):
                 _run(["userdel", "-r", username])
                 registry.pop(username, None)
                 _save_registry(registry)
+                password_store = _load_password_store()
+                if password_store.pop(username, None) is not None:
+                    _save_password_store(password_store)
                 print("%s[OK] '%s' removed.%s" % (C_GREEN, username, C_RESET))
             input("\nPress Enter to continue...")
 
@@ -578,9 +612,9 @@ def ssh_user_admin_manager(ports_dict):
 
         elif choice == '7':
             clear_screen()
-            print("================================================================")
-            print("               DELETE EXPIRED USERS                         ")
-            print("================================================================")
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s               DELETE EXPIRED USERS                         %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
             removed = []
             for uname in list(registry.keys()):
                 expiry_dt = _real_expiry_check(uname)
@@ -593,6 +627,10 @@ def ssh_user_admin_manager(ports_dict):
                     removed.append(uname)
             _save_registry(registry)
             if removed:
+                password_store = _load_password_store()
+                for uname in removed:
+                    password_store.pop(uname, None)
+                _save_password_store(password_store)
                 print("%s[OK] Removed expired users: %s%s" % (C_GREEN, ", ".join(removed), C_RESET))
             else:
                 print("%s[i] No expired users found.%s" % (C_YELLOW, C_RESET))
@@ -609,14 +647,15 @@ def ssh_user_admin_manager(ports_dict):
                     _run(["userdel", "-r", uname])
                 registry.clear()
                 _save_registry(registry)
+                _save_password_store({})
                 print("%s[OK] All registered users removed.%s" % (C_GREEN, C_RESET))
             input("\nPress Enter to continue...")
 
         elif choice == '9':
             clear_screen()
-            print("================================================================")
-            print("                 ACTIVE ONLINE USERS                        ")
-            print("================================================================")
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s                 ACTIVE ONLINE USERS                        %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
             sessions = _parse_who_sessions()
             registered_users = set(registry.keys())
             online = [s for s in sessions if s["username"] in registered_users]
@@ -631,9 +670,9 @@ def ssh_user_admin_manager(ports_dict):
 
         elif choice == '10':
             clear_screen()
-            print("================================================================")
-            print("               USERS WITH SHARED ACCOUNT                    ")
-            print("================================================================")
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s               USERS WITH SHARED ACCOUNT                    %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
             print(" Flags registered users whose currently active sessions come from")
             print(" more than one distinct source IP at the same time - a strong signal")
             print(" the same login is being used on multiple devices/locations.")

@@ -168,9 +168,9 @@ def wireguard_admin_manager(ports_dict):
                 peer_count = f.read().count('[Peer]')
 
         clear_screen()
-        print("================================================================")
-        print("                  WIREGUARD ADMINISTRATOR                   ")
-        print("================================================================")
+        print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+        print("%s                  WIREGUARD ADMINISTRATOR                   %s" % (C_BOLD, C_RESET))
+        print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
         print("      PORT: %s  |  SUBNET: %s  |  PEERS: %s" % (wg_port, wg_subnet, peer_count))
         print("----------------------------------------------------------------")
         print(" [1]> CONFIGURE / INSTALL WIREGUARD (Wizard)")
@@ -179,9 +179,9 @@ def wireguard_admin_manager(ports_dict):
         print(" [4]> VIEW SERVICE STATUS / PEERS")
         print(" [5]> RESTART WIREGUARD SERVICE")
         print(" [6]> START/STOP WIREGUARD SERVICE [%s]" % status_label)
-        print("================================================================")
+        print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
         print(" [0] RETURN  [7] UNINSTALL WIREGUARD")
-        print("================================================================")
+        print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
 
         choice = input(" Enter an Option: ").strip()
 
@@ -190,9 +190,9 @@ def wireguard_admin_manager(ports_dict):
 
         elif choice == '1':
             clear_screen()
-            print("================================================================")
-            print("           WIREGUARD INSTALLATION WIZARD                    ")
-            print("================================================================")
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s           WIREGUARD INSTALLATION WIZARD                    %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
 
             listen_port = prompt_port(" Enter desired WireGuard listen port (e.g., 51820): ", default=51820)
             if str(listen_port) != str(wg_port) and check_system_port_in_use(listen_port, ("udp",)):
@@ -243,9 +243,9 @@ def wireguard_admin_manager(ports_dict):
 
         elif choice == '2':
             clear_screen()
-            print("================================================================")
-            print("                MANAGE WIREGUARD CLIENT PEERS               ")
-            print("================================================================")
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s                MANAGE WIREGUARD CLIENT PEERS               %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
             if not os.path.exists(WG_CONF_PATH):
                 print("%s[X] Not installed yet - run option 1 first.%s" % (C_RED, C_RESET))
                 input("\nPress Enter to continue...")
@@ -285,7 +285,8 @@ def wireguard_admin_manager(ports_dict):
                 with open(WG_CONF_PATH, "a") as f:
                     f.write(peer_block)
 
-                sync = _run("wg syncconf wg0 <(wg-quick strip wg0)")
+                _run("wg-quick strip wg0 > /tmp/.wg0_stripped.conf")
+                sync = _run("wg syncconf wg0 /tmp/.wg0_stripped.conf")
                 if sync.returncode != 0:
                     _restart_wg()
 
@@ -325,7 +326,8 @@ PersistentKeepalive = 25
                     else:
                         with open(WG_CONF_PATH, "w") as f:
                             f.write(new_content)
-                        sync = _run("wg syncconf wg0 <(wg-quick strip wg0)")
+                        _run("wg-quick strip wg0 > /tmp/.wg0_stripped.conf")
+                        sync = _run("wg syncconf wg0 /tmp/.wg0_stripped.conf")
                         if sync.returncode != 0:
                             _restart_wg()
                         _run("rm -f %s/clients/%s.conf" % (WG_DIR, name))
@@ -334,9 +336,9 @@ PersistentKeepalive = 25
 
         elif choice == '3':
             clear_screen()
-            print("================================================================")
-            print("                  CHANGE LISTEN PORT                        ")
-            print("================================================================")
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s                  CHANGE LISTEN PORT                        %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
             if not os.path.exists(WG_CONF_PATH):
                 print("%s[X] Not installed yet - run option 1 first.%s" % (C_RED, C_RESET))
                 input("\nPress Enter to continue...")
@@ -378,9 +380,9 @@ PersistentKeepalive = 25
 
         elif choice == '4':
             clear_screen()
-            print("================================================================")
-            print("               WIREGUARD STATUS / PEERS                     ")
-            print("================================================================")
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s               WIREGUARD STATUS / PEERS                     %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
             os.system("wg show wg0")
             input("\nPress Enter to continue...")
 
@@ -409,9 +411,9 @@ PersistentKeepalive = 25
 
         elif choice == '7':
             clear_screen()
-            print("================================================================")
-            print("                UNINSTALL WIREGUARD                         ")
-            print("================================================================")
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s                UNINSTALL WIREGUARD                         %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
             confirm = input(" Are you sure you want to completely remove WireGuard? (y/n): ").strip().lower()
             if confirm == 'y':
                 _run("systemctl stop wg-quick@wg0 && systemctl disable wg-quick@wg0")

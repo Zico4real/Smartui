@@ -327,9 +327,9 @@ def openvpn_admin_manager(ports_dict):
         status_label = "ON" if is_active else "OFF"
 
         clear_screen()
-        print("================================================================")
-        print("                   OPENVPN ADMINISTRATOR                    ")
-        print("================================================================")
+        print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+        print("%s                   OPENVPN ADMINISTRATOR                    %s" % (C_BOLD, C_RESET))
+        print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
         print(f"      PORT: {ovpn_port}  |  PROTOCOL: {ovpn_proto.upper() if isinstance(ovpn_proto, str) else ovpn_proto}")
         print("----------------------------------------------------------------")
         print(" [1]> CONFIGURE / INSTALL OPENVPN (Wizard)")
@@ -338,9 +338,9 @@ def openvpn_admin_manager(ports_dict):
         print(" [4]> VIEW SERVICE LOGS")
         print(" [5]> RESTART OPENVPN SERVICE")
         print(f" [6]> START/STOP OPENVPN SERVICE [{status_label}]")
-        print("================================================================")
+        print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
         print(" [0] RETURN  [7] UNINSTALL OPENVPN")
-        print("================================================================")
+        print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
 
         choice = input(" Enter an Option: ").strip()
 
@@ -349,9 +349,9 @@ def openvpn_admin_manager(ports_dict):
 
         elif choice == '1':
             clear_screen()
-            print("================================================================")
-            print("            OPENVPN INSTALLATION WIZARD                     ")
-            print("================================================================")
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s            OPENVPN INSTALLATION WIZARD                     %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
 
             proto_choice = input(" Select Protocol ([1] UDP / [2] TCP) [Default: UDP]: ").strip()
             listen_proto = "tcp" if proto_choice == '2' else "udp"
@@ -398,9 +398,9 @@ def openvpn_admin_manager(ports_dict):
 
         elif choice == '2':
             clear_screen()
-            print("================================================================")
-            print("              CHANGE PORT & PROTOCOL SETTINGS               ")
-            print("================================================================")
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s              CHANGE PORT & PROTOCOL SETTINGS               %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
             if not os.path.exists(SERVER_CONF_PATH):
                 print(f"{C_RED}[X] Not installed yet - run option 1 first.{C_RESET}")
                 input("\nPress Enter to continue...")
@@ -440,9 +440,9 @@ def openvpn_admin_manager(ports_dict):
 
         elif choice == '3':
             clear_screen()
-            print("================================================================")
-            print("                   MANAGE OPENVPN CLIENTS                   ")
-            print("================================================================")
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s                   MANAGE OPENVPN CLIENTS                   %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
             if not os.path.exists(PKI_DIR):
                 print(f"{C_RED}[X] Not installed yet - run option 1 first.{C_RESET}")
                 input("\nPress Enter to continue...")
@@ -489,9 +489,9 @@ def openvpn_admin_manager(ports_dict):
 
         elif choice == '4':
             clear_screen()
-            print("================================================================")
-            print("                  OPENVPN SERVICE LOGS                      ")
-            print("================================================================")
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s                  OPENVPN SERVICE LOGS                      %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
             os.system("journalctl -u openvpn-server@server -n 50 --no-pager")
             input("\nPress Enter to continue...")
 
@@ -520,9 +520,9 @@ def openvpn_admin_manager(ports_dict):
 
         elif choice == '7':
             clear_screen()
-            print("================================================================")
-            print("                   UNINSTALL OPENVPN                        ")
-            print("================================================================")
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
+            print("%s                   UNINSTALL OPENVPN                        %s" % (C_BOLD, C_RESET))
+            print("%s════════════════════════════════════════════════════════════════%s" % (C_CYAN, C_RESET))
             confirm = input(" Are you sure you want to completely remove OpenVPN? (y/n): ").strip().lower()
             if confirm == 'y':
                 _run("systemctl stop openvpn-server@server && systemctl disable openvpn-server@server")

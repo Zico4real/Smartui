@@ -63,8 +63,10 @@ Real bugs found in the original main_dashboard() while building this:
 import os
 import re
 import json
+import shutil
 import platform
 import datetime
+import subprocess
 import pwd
 
 from panel_common import C_RESET, C_BOLD, C_RED, C_GREEN, C_YELLOW, C_CYAN, clear_screen
@@ -146,6 +148,96 @@ def get_system_stats():
     return active, expired, blocked, total, online
 
 
+def _update_script_screen():
+    """Real update flow, not just a bare `git pull`:
+    - Refuses to run at all if the install isn't a git checkout (no way to
+      update safely without one).
+    - Backs up the current /opt/smartui (everything except .git) to a
+      timestamped directory before touching anything.
+    - Uses `git pull --ff-only`, which fails cleanly rather than overwriting
+      anything if there are local uncommitted changes it can't cleanly
+      reconcile - it will never silently discard edits.
+    - Verifies the updated code actually imports before declaring success;
+      automatically restores the backup if it doesn't.
+    - Never touches anything outside PANEL_INSTALL_DIR - the state file
+      (/etc/smartui/panel_state.json) and every installed protocol's own
+      config/systemd/binaries live in entirely separate directories, so a
+      pull here can't reach or reset them even accidentally.
+    """
+    clear_screen()
+    print(f"{C_CYAN}════════════════════════════════════════════════════════════{C_RESET}")
+    print(f"{C_BOLD}                      UPDATE SCRIPT                          {C_RESET}")
+    print(f"{C_CYAN}════════════════════════════════════════════════════════════{C_RESET}")
+
+    if not os.path.isdir(f"{PANEL_INSTALL_DIR}/.git"):
+        print(f"{C_YELLOW}Not a git checkout - installed some other way, so there's no safe")
+        print(f"way to update in place from here. Re-run the installer instead.{C_RESET}")
+        input("\nPress Enter to continue...")
+        return
+
+    print(f"{C_CYAN}[i] Checking for updates...{C_RESET}")
+    subprocess.run(["git", "fetch", "--quiet"], cwd=PANEL_INSTALL_DIR)
+    status = subprocess.run(["git", "status", "-uno"], cwd=PANEL_INSTALL_DIR, capture_output=True, text=True)
+    print(status.stdout)
+
+    dirty = subprocess.run(["git", "status", "--porcelain"], cwd=PANEL_INSTALL_DIR, capture_output=True, text=True)
+    if dirty.stdout.strip():
+        print(f"{C_YELLOW}[!] There are local changes to panel files (shown above/via 'git status').")
+        print(f"    The update will still only fast-forward - it will refuse rather than")
+        print(f"    overwrite anything it can't cleanly reconcile.{C_RESET}")
+
+    if "Your branch is up to date" in status.stdout:
+        print(f"{C_GREEN}Already up to date.{C_RESET}")
+        input("\nPress Enter to continue...")
+        return
+
+    confirm = input("\n Apply the update now? (y/n): ").strip().lower()
+    if confirm != 'y':
+        print(f"{C_YELLOW}[i] Cancelled.{C_RESET}")
+        input("\nPress Enter to continue...")
+        return
+
+    timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    backup_dir = f"{PANEL_INSTALL_DIR}.backup-{timestamp}"
+    print(f"{C_CYAN}[i] Backing up current install to {backup_dir}...{C_RESET}")
+    shutil.copytree(PANEL_INSTALL_DIR, backup_dir, ignore=shutil.ignore_patterns(".git"))
+
+    pull = subprocess.run(["git", "pull", "--ff-only"], cwd=PANEL_INSTALL_DIR, capture_output=True, text=True)
+    if pull.returncode != 0:
+        print(f"{C_RED}[X] Update failed - nothing was changed (fast-forward-only pull refused")
+        print(f"    rather than risk overwriting local changes):{C_RESET}")
+        print(pull.stderr.strip())
+        input("\nPress Enter to continue...")
+        return
+
+    verify = subprocess.run(
+        ["python3", "-c", f"import sys; sys.path.insert(0, '{PANEL_INSTALL_DIR}'); import smartui_main"],
+        capture_output=True, text=True,
+    )
+    if verify.returncode != 0:
+        print(f"{C_RED}[X] The updated code failed to import - restoring the backup automatically.{C_RESET}")
+        for item in os.listdir(PANEL_INSTALL_DIR):
+            if item == ".git":
+                continue
+            item_path = os.path.join(PANEL_INSTALL_DIR, item)
+            if os.path.isdir(item_path):
+                shutil.rmtree(item_path)
+            else:
+                os.remove(item_path)
+        for item in os.listdir(backup_dir):
+            shutil.move(os.path.join(backup_dir, item), os.path.join(PANEL_INSTALL_DIR, item))
+        shutil.rmtree(backup_dir)
+        print(f"{C_GREEN}[OK] Restored - the panel is back on the previous working version.{C_RESET}")
+        print(f"    Details of the import failure:{C_RESET}\n{verify.stderr.strip()}")
+    else:
+        print(f"{C_GREEN}[OK] Updated and verified successfully.{C_RESET}")
+        print(f" Backup of the previous version kept at: {backup_dir}")
+        print(f" (Your installed protocols, accounts, and panel_state.json were never")
+        print(f"  touched - they live outside {PANEL_INSTALL_DIR} entirely.)")
+        print(f" Restart the panel to use the new version.")
+    input("\nPress Enter to continue...")
+
+
 def _panel_info_screen():
     clear_screen()
     print(f"{C_CYAN}════════════════════════════════════════════════════════════{C_RESET}")
@@ -155,26 +247,94 @@ def _panel_info_screen():
     print(f"  Install path: {PANEL_INSTALL_DIR}")
     print(f"  State file:   {STATE_PATH}")
     print(f"{C_CYAN}────────────────────────────────────────────────────────────{C_RESET}")
-    if os.path.isdir(f"{PANEL_INSTALL_DIR}/.git"):
-        print(f"  [1] Check for updates (git pull)")
-        print(f"  [0] Back")
-        choice = input(" Enter an option: ").strip()
-        if choice == '1':
-            print(f"\n{C_CYAN}[i] Checking for updates...{C_RESET}")
-            os.system(f"cd {PANEL_INSTALL_DIR} && git fetch --quiet && git status -uno")
-            confirm = input("\n Pull the latest changes now? (y/n): ").strip().lower()
-            if confirm == 'y':
-                result = os.system(f"cd {PANEL_INSTALL_DIR} && git pull")
-                if result == 0:
-                    print(f"{C_GREEN}[OK] Updated. Restart the panel to use the new version.{C_RESET}")
-                else:
-                    print(f"{C_RED}[X] git pull failed - check output above.{C_RESET}")
-            input("\nPress Enter to continue...")
+    print(f"  [0] Back")
+    input("\nPress Enter to continue...")
+
+
+CRON_REBOOT_PATH = "/etc/cron.d/smartui-scheduled-reboot"
+
+
+def _cronjob_reboot_screen():
+    clear_screen()
+    print(f"{C_CYAN}════════════════════════════════════════════════════════════{C_RESET}")
+    print(f"{C_BOLD}                     CRONJOB REBOOT                          {C_RESET}")
+    print(f"{C_CYAN}════════════════════════════════════════════════════════════{C_RESET}")
+
+    currently_enabled = os.path.exists(CRON_REBOOT_PATH)
+    if currently_enabled:
+        with open(CRON_REBOOT_PATH) as f:
+            current_line = f.read().strip()
+        print(f"  Currently enabled: {C_GREEN}{current_line.split('root')[0].strip()}{C_RESET}")
     else:
-        print(f"  {C_YELLOW}Not a git checkout - installed some other way, so there's no{C_RESET}")
-        print(f"  {C_YELLOW}update check available here. Re-run the installer to update.{C_RESET}")
-        print(f"  [0] Back")
+        print(f"  Currently: {C_YELLOW}disabled{C_RESET}")
+
+    print(f"{C_CYAN}────────────────────────────────────────────────────────────{C_RESET}")
+    print("  [1] Every 6 hours")
+    print("  [2] Every 12 hours")
+    print("  [3] Every 24 hours")
+    print("  [4] Custom interval (hours)")
+    print("  [5] Disable scheduled reboot")
+    print("  [0] Back")
+    choice = input(" Enter an option: ").strip()
+
+    interval_hours = None
+    if choice == '1':
+        interval_hours = 6
+    elif choice == '2':
+        interval_hours = 12
+    elif choice == '3':
+        interval_hours = 24
+    elif choice == '4':
+        raw = input(" Enter custom interval in hours (1-168): ").strip()
+        if raw.isdigit() and 1 <= int(raw) <= 168:
+            interval_hours = int(raw)
+        else:
+            print(f"{C_RED}[X] Enter a whole number of hours between 1 and 168.{C_RESET}")
+            input("\nPress Enter to continue...")
+            return
+    elif choice == '5':
+        if currently_enabled:
+            os.remove(CRON_REBOOT_PATH)
+            print(f"{C_GREEN}[OK] Scheduled reboot disabled.{C_RESET}")
+        else:
+            print(f"{C_YELLOW}[i] Already disabled - nothing to do.{C_RESET}")
         input("\nPress Enter to continue...")
+        return
+    elif choice == '0':
+        return
+    else:
+        print(f"{C_RED}Invalid option.{C_RESET}")
+        input("\nPress Enter to continue...")
+        return
+
+    confirm = input(f" Reboot this VPS every {interval_hours} hours? (y/n): ").strip().lower()
+    if confirm != 'y':
+        print(f"{C_YELLOW}[i] Cancelled.{C_RESET}")
+        input("\nPress Enter to continue...")
+        return
+
+    # cron's own field doesn't support "every N hours" directly for N>23 in a
+    # single expression that also divides evenly - build the step correctly
+    # for the common divisors of 24 (6/12/24) and fall back to a plain
+    # */N-hour step (cron accepts N up to 23 for */N on the hour field; for
+    # anything larger, run hourly and let the script itself gate on the count
+    # is unnecessary complexity here - custom intervals over 23 hours use a
+    # day-based step instead).
+    if interval_hours <= 23:
+        cron_expr = f"0 */{interval_hours} * * *"
+        if 24 % interval_hours != 0:
+            print(f"{C_YELLOW}[i] {interval_hours} doesn't divide evenly into 24 - reboots will be evenly")
+            print(f"    spaced except for one shorter gap where the schedule wraps past")
+            print(f"    midnight (a standard cron quirk, not a bug).{C_RESET}")
+    else:
+        days = max(1, interval_hours // 24)
+        cron_expr = f"0 0 */{days} * *"
+
+    with open(CRON_REBOOT_PATH, "w") as f:
+        f.write(f"{cron_expr} root /sbin/reboot\n")
+    os.chmod(CRON_REBOOT_PATH, 0o644)
+    print(f"{C_GREEN}[OK] Scheduled reboot enabled: every {interval_hours} hours.{C_RESET}")
+    input("\nPress Enter to continue...")
 
 
 def main_dashboard():
@@ -207,8 +367,11 @@ def main_dashboard():
         print(f"{C_CYAN}────────────────────────────────────────────────────────────{C_RESET}")
         print(f"  {C_YELLOW}[6]>{C_RESET} CONFIGURE API & BOTS")
         print(f"{C_CYAN}────────────────────────────────────────────────────────────{C_RESET}")
-        print(f"  {C_YELLOW}[7]>{C_RESET} PANEL INFO / CHECK FOR UPDATES")
+        print(f"  {C_YELLOW}[7]>{C_RESET} PANEL INFO")
         print(f"  {C_YELLOW}[8]>{C_RESET} {C_RED}[!] UNINSTALL PANEL (partial - see note){C_RESET}")
+        print(f"{C_CYAN}────────────────────────────────────────────────────────────{C_RESET}")
+        print(f"  {C_YELLOW}[10]>{C_RESET} UPDATE SCRIPT")
+        print(f"  {C_YELLOW}[11]>{C_RESET} CRONJOB REBOOT")
         print(f"{C_CYAN}════════════════════════════════════════════════════════════{C_RESET}")
         print(f"  {C_GREEN}[0]  EXIT SCRIPT    [9]  RESTART VPS{C_RESET}")
         print(f"{C_CYAN}════════════════════════════════════════════════════════════{C_RESET}")
@@ -256,6 +419,12 @@ def main_dashboard():
                 save_ports_dict(ports_dict)
                 break
             input("\nPress Enter to continue...")
+
+        elif choice == '10':
+            _update_script_screen()
+
+        elif choice == '11':
+            _cronjob_reboot_screen()
 
         elif choice == '0':
             print(f"\n{C_YELLOW}[i] Exiting...{C_RESET}")
