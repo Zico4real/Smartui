@@ -1,0 +1,136 @@
+--- /root/.claude/uploads/0b0c187c-ced8-5b03-b1e5-807d6b468311/2ead8b70-protocol_configuration_manager.py	2026-10-07 00:45:16.490699725 +0100
++++ protocol_configuration_manager.py	2026-10-07 00:59:10.485816606 +0100
+@@ -65,6 +65,7 @@
+     ("WS_PORT", "/etc/systemd/system/ws-epro.service", r'Environment=WS_EPRO_LISTEN_PORT=(\d+)'),
+     ("HYSTERIA1_PORT", "/etc/hysteria1/config.json", r'"listen":\s*":(\d+)"'),
+     ("BROKER_PORT", "/etc/sslh/sslh.cfg", r'port: "(\d+)"'),
++    ("SSTP_PORT", "/etc/accel-ppp/smartui-sstp.conf", r'smartui-sstp-port=(\d+)'),
+ ]
+ 
+ 
+@@ -137,6 +138,12 @@
+         listening = check_system_port_in_use(int(port), (proto,))
+         if not listening:
+             return "%s[ON?]%s" % (C_YELLOW, C_RESET), port  # active per systemd, but port not confirmed live
++    elif port and "," in str(port):
++        # Multi-port services (Dropbear, Stunnel, CheckUser...) record a
++        # comma-separated list - confirm at least one of them is live.
++        listed = [p.strip() for p in str(port).split(",") if p.strip().isdigit()]
++        if listed and not any(check_system_port_in_use(int(p), (proto,)) for p in listed):
++            return "%s[ON?]%s" % (C_YELLOW, C_RESET), port
+     return "%s[ON]%s" % (C_GREEN, C_RESET), port
+ 
+ 
+@@ -326,6 +333,56 @@
+     return "%s[ON]%s" % (C_GREEN, C_RESET), "%d/%d running" % (running, len(credentials))
+ 
+ 
++def _ikev2_status(ports_dict):
++    """IKEv2 and L2TP/IPsec share ONE strongSwan (charon) process, so the
++    service being active is not enough - IKEv2 only counts as ON when ITS OWN
++    connection file exists. The live IKE/NAT-T ports are read straight from
++    the charon config (the source of truth) and written back to ports_dict."""
++    try:
++        import vpn_common as vc
++    except Exception:
++        return "%s[OFF]%s" % (C_RED, C_RESET), None
++    if not os.path.exists(vc.IKEV2_CONF) or not _service_active(vc.STRONGSWAN_UNIT):
++        return "%s[OFF]%s" % (C_RED, C_RESET), None
++    ike, natt = vc.get_charon_ports()
++    ports_dict['IKEV2_PORT'] = str(ike)
++    ports_dict['IKEV2_NATT_PORT'] = str(natt)
++    detail = "%d,%d" % (ike, natt)
++    if check_system_port_in_use(ike, ("udp",)) and check_system_port_in_use(natt, ("udp",)):
++        return "%s[ON]%s" % (C_GREEN, C_RESET), detail
++    return "%s[ON?]%s" % (C_YELLOW, C_RESET), detail
++
++
++def _l2tp_status(ports_dict):
++    """L2TP needs xl2tpd, and in IPsec mode also strongSwan. The detail lists
++    every port a customer's device really talks to: IKE + NAT-T + L2TP for
++    L2TP/IPsec, or just the L2TP port in plain mode."""
++    try:
++        import vpn_common as vc
++        import l2tp_manager as l2m
++    except Exception:
++        return "%s[OFF]%s" % (C_RED, C_RESET), None
++    if not l2m._installed() or not _service_active("xl2tpd"):
++        return "%s[OFF]%s" % (C_RED, C_RESET), None
++    meta = l2m._load_meta()
++    port = l2m.get_port()
++    ports_dict['L2TP_PORT'] = str(port)
++    ports_dict['L2TP_MODE'] = meta["mode"]
++    needed = [port]
++    detail = str(port)
++    if meta["mode"] == "ipsec":
++        if not _service_active(vc.STRONGSWAN_UNIT):
++            return "%s[OFF]%s" % (C_RED, C_RESET), None
++        ike, natt = vc.get_charon_ports()
++        ports_dict['L2TP_IKE_PORT'] = str(ike)
++        ports_dict['L2TP_NATT_PORT'] = str(natt)
++        needed += [ike, natt]
++        detail = "%d,%d,%d" % (ike, natt, port)
++    if all(check_system_port_in_use(p, ("udp",)) for p in needed):
++        return "%s[ON]%s" % (C_GREEN, C_RESET), detail
++    return "%s[ON?]%s" % (C_YELLOW, C_RESET), detail
++
++
+ def _visible_len(text):
+     return len(re.sub(r'\033\[[0-9;]*m', '', text))
+ 
+@@ -359,7 +416,7 @@
+             ("9", "BADVPN-UDPGW", "badvpn", ports_dict.get('BADVPN_PORT'), "tcp"),
+             ("10", "SQUID", "squid", ports_dict.get('SQUID_PORT'), "tcp"),
+             ("11", "OPENVPN", "openvpn-server@server", ports_dict.get('OPENVPN_PORT'), ports_dict.get('OPENVPN_PROTO', 'udp')),
+-            ("12", "CHECKUSER ONLINE", "checkuser-api", (ports_dict.get('CHECKUSER_API_PORTS') or '').split(',')[0] or None, "tcp"),
++            ("12", "CHECKUSER ONLINE", "checkuser-api", ports_dict.get('CHECKUSER_API_PORTS') or None, "tcp"),
+             ("13", "ATKEN and HASH", "atken-hash", ports_dict.get('ATKEN_PORT'), "tcp"),
+             ("14", "FILEBROWSER", "filebrowser", ports_dict.get('FILEBROWSER_PORT'), "tcp"),
+             ("15", "V2RAY/XRAY", None, None, None),  # handled specially below
+@@ -373,6 +430,9 @@
+             ("23", "UDP DROID", None, None, None),  # handled specially below - two services, not a single generic port check
+             ("24", "HAPROXY (SNI)", None, None, None),  # handled specially below
+             ("25", "NGINX (PROXY)", None, None, None),  # handled specially below
++            ("26", "L2TP", None, None, None),  # handled specially below - xl2tpd (+ strongSwan in IPsec mode)
++            ("27", "IKEV2", None, None, None),  # handled specially below - shares strongSwan with L2TP/IPsec
++            ("28", "SSTP", "smartui-sstp", ports_dict.get('SSTP_PORT'), "tcp"),
+         ]
+ 
+         status_by_num = {}
+@@ -397,6 +457,10 @@
+                 tag, detail = _haproxy_status()
+             elif num == "25":
+                 tag, detail = _nginx_status()
++            elif num == "26":
++                tag, detail = _l2tp_status(ports_dict)
++            elif num == "27":
++                tag, detail = _ikev2_status(ports_dict)
+             else:
+                 tag, detail = _status_tag(svc, port, proto)
+             status_by_num[num] = tag
+@@ -459,6 +523,9 @@
+         print(_format_cell("23", "UDP DROID", status_by_num["23"]))
+         print(_format_cell("24", "HAPROXY (SNI)", status_by_num["24"]))
+         print(_format_cell("25", "NGINX (PROXY)", status_by_num["25"]))
++        print(_format_cell("26", "L2TP", status_by_num["26"]))
++        print(_format_cell("27", "IKEV2", status_by_num["27"]))
++        print(_format_cell("28", "SSTP", status_by_num["28"]))
+ 
+         print("%s============================================================%s" % (C_CYAN, C_RESET))
+         print(" %s[0] Back%s" % (C_GREEN, C_RESET))
+@@ -544,6 +611,15 @@
+         elif choice == '25':
+             from nginx_manager import nginx_admin_manager
+             nginx_admin_manager(ports_dict)
++        elif choice == '26':
++            from l2tp_manager import l2tp_admin_manager
++            l2tp_admin_manager(ports_dict)
++        elif choice == '27':
++            from ikev2_manager import ikev2_admin_manager
++            ikev2_admin_manager(ports_dict)
++        elif choice == '28':
++            from sstp_manager import sstp_admin_manager
++            sstp_admin_manager(ports_dict)
+         else:
+             print("%sInvalid option.%s" % (C_RED, C_RESET))
+             input("Press Enter to continue...")
