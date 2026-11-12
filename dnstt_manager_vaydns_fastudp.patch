@@ -1,0 +1,53 @@
+diff --git a/dnstt_manager.py b/dnstt_manager.py
+index b1385e7..d48fcc3 100644
+--- a/dnstt_manager.py
++++ b/dnstt_manager.py
+@@ -2706,14 +2706,34 @@ def _multi_engine_menu(ports_dict):
+ 
+             if mode in ('dnstt', 'vaydns', 'noizdns'):
+                 target_port = prompt_port(" Enter local target port (e.g., 22 for SSH): ", default=22)
++                # NEW: VayDNS "Fast UDP" (KCP) option. This does NOT add a new mode string -
++                # mode stays 'vaydns' throughout, so every other mode in ('dnstt','vaydns',
++                # 'noizdns') tuple elsewhere in this file (firewall, pubkey retrieval, client
++                # info display, deletion, etc.) keeps working unchanged. The only thing that
++                # changes is which value gets passed for _install_vaydns_routed()'s existing
++                # dnstt_compat parameter - that function already supports either mode, it was
++                # just always called with the default (True/legacy) before. Defaults to
++                # Legacy/Compatible so nothing changes for an admin who doesn't opt in.
++                vaydns_fast_udp = False
++                if mode == 'vaydns':
++                    print()
++                    print(" VayDNS transport:")
++                    print("   [1] Legacy / Compatible (default) - works with every client app, same as before")
++                    print("   [2] Fast UDP - KCP (several times faster) - requires a Speedmaxpro app build with")
++                    print("       Fast UDP / VayDNS support; older app builds cannot connect to this mode")
++                    vt_choice = input(" Select transport [1]: ").strip()
++                    vaydns_fast_udp = (vt_choice == '2')
+                 if mode == 'dnstt':
+                     ok = _install_dnstt_routed(name, domain_ns, target_port, internal_port)
+                 elif mode == 'vaydns':
+-                    ok = _install_vaydns_routed(name, domain_ns, target_port, internal_port)
++                    ok = _install_vaydns_routed(name, domain_ns, target_port, internal_port,
++                                                 dnstt_compat=not vaydns_fast_udp)
+                 else:
+                     ok = _install_noizdns_routed(name, domain_ns, target_port, internal_port)
+                 entry = {"mode": mode, "domain": domain_ns, "server_ip": server_ip,
+                          "internal_port": internal_port, "target_port": target_port, "routed": True}
++                if mode == 'vaydns':
++                    entry["fast_udp"] = vaydns_fast_udp
+             elif mode == 'slipstream':
+                 target_port, backend_kind = _prompt_slipstream_backend()
+                 if target_port is None:
+@@ -2792,7 +2812,11 @@ def _multi_engine_menu(ports_dict):
+                     print(f"  Matching:  " + ("catch-all (anything not DNS/other signature)" if entry.get('catch_all')
+                           else str((entry.get('signature') or {}).get('type', '?')) + " signature"))
+                     continue
+-                print(f"\n--- {name} ({entry['mode']}) ---")
++                vaydns_fast = entry['mode'] == 'vaydns' and entry.get('fast_udp')
++                print(f"\n--- {name} ({entry['mode']}{' - FAST UDP/KCP' if vaydns_fast else ''}) ---")
++                if vaydns_fast:
++                    print(f"  Transport: Fast UDP (KCP) - needs a Speedmaxpro app build with Fast UDP support;")
++                    print(f"             older app builds / other dnstt-compatible clients cannot use this instance")
+                 print(f"  Domain:    {entry['domain']}")
+                 print(f"  Server IP: {entry.get('server_ip', '?')}")
+                 if entry['mode'] in ('dnstt', 'vaydns', 'slipstream', 'noizdns'):
